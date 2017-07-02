@@ -14,12 +14,15 @@ class Obj {
 public:
     Obj(int p, uint64_t i) : producer(p), id(i) {
     }
+
     Obj() : producer(0), id(0) {}
+
     void operator()() {
         std::ostringstream os;
         os << "Running P: " << producer << " Task: " << id;
         std::cout << os.str() << std::endl << std::flush;
     }
+
     const int producer;
     const uint64_t id;
 };
@@ -34,6 +37,7 @@ public:
         std::lock_guard<std::mutex> lock(mLock);
         elements.insert(v);
     }
+
     void erase(uint64_t v) {
         std::lock_guard<std::mutex> lock(mLock);
         if (elements.find(v) == elements.end()) {
@@ -42,6 +46,7 @@ public:
         }
         elements.erase(v);
     }
+
 private:
     std::mutex mLock;
     std::set<uint64_t> elements;
@@ -52,10 +57,11 @@ private:
  */
 class Producer {
 public:
-    Producer(int id, Pool& p, uint64_t m) : pool(p), producerId(id), max(m) {
+    Producer(int id, Pool &p, uint64_t m) : pool(p), producerId(id), max(m) {
     }
-    void operator()(ConcurrentQueue<Obj*>& queue) {
-        while(true) {
+
+    void operator()(ConcurrentQueue<Obj *> &queue) {
+        while (true) {
             auto taskId = counter++;
             if (taskId >= max) {
                 break;
@@ -67,7 +73,7 @@ public:
     }
 
 private:
-    Pool& pool;
+    Pool &pool;
     const int producerId;
     const uint64_t max;
     static std::atomic_uint_fast64_t counter;
@@ -78,64 +84,66 @@ private:
  */
 class Consumer {
 public:
-    Consumer(Pool& p, uint64_t m) : pool(p), max(m) {}
-    void operator()(ConcurrentQueue<Obj*>& queue) {
-	long count = 0;
+    Consumer(Pool &p, uint64_t m) : pool(p), max(m) {}
+
+    void operator()(ConcurrentQueue<Obj *> &queue) {
+        long count = 0;
         while (true) {
             if (queue.peek()) {
-                Obj* task;
+                Obj *task;
                 if (!queue.pop(task)) {
-		    std::cout << "pop must not fail" << std::endl;
-		    std::abort();
-		}
-		count++;
-                pool.erase(task->id);
+                    std::cout << "pop must not fail" << std::endl;
+                    std::abort();
+                }
                 uint64_t taskId = task->id;
+                std::cout << "Got element " << taskId << std::endl;
+                count++;
+                pool.erase(taskId);
                 (*task)();
                 delete task;
-                if (taskId == max-1) {
+                if (taskId == max - 1) {
                     break;
                 }
             }
         }
         if (count != max) {
-    	    std::cout << "Expecting " << max << ", but got only " << count << std::endl;
+            std::cout << "Expecting " << max << ", but got only " << count << std::endl;
             std::abort();
         }
     }
 
 private:
-    Pool& pool;
+    Pool &pool;
     const uint64_t max;
 };
 
 
 std::atomic_uint_fast64_t Producer::counter;
 
-int main(int, char**) {
+int main(int, char **) {
 
-    constexpr int producerCount = 8;
-    constexpr uint64_t limit = 10000;
+    constexpr int producerCount = 2;
+    constexpr uint64_t limit = 100;
 
-    ConcurrentQueue<Obj*> queue;
+    ConcurrentQueue<Obj *> queue;
 
     Pool pool;
     std::thread producerThreads[producerCount];
 
-    std::thread consumerThread([ & ] {
+    std::thread consumerThread([&] {
         Consumer consumer(pool, limit);
         consumer(queue);
     });
 
-    for (int i=0; i<producerCount; ++i) {
-        producerThreads[i] = std::thread([ &, i ] {
+    for (int i = 0; i < producerCount; ++i) {
+        producerThreads[i] = std::thread([&, i] {
             Producer producer(i, pool, limit);
             producer(queue);
         });
     }
 
     consumerThread.join();
-    for (int i=0; i<producerCount; ++i) {
+    for (int i = 0; i < producerCount; ++i) {
         producerThreads[i].join();
     }
     return 0;
