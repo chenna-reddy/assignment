@@ -40,3 +40,6 @@ cmake-build-debug/
 
 # Temporary
 out
+remove
+write
+

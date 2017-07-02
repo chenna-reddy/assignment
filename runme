@@ -1,0 +1,7 @@
+#!/bin/sh
+
+cmake -H. -Bbuild
+cmake --build build -- -j3
+./build/cq > out
+grep -i writing out > write
+grep -i remov out > remove
