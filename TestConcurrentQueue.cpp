@@ -80,10 +80,15 @@ class Consumer {
 public:
     Consumer(Pool& p, uint64_t m) : pool(p), max(m) {}
     void operator()(ConcurrentQueue<Obj*>& queue) {
+	long count = 0;
         while (true) {
             if (queue.peek()) {
                 Obj* task;
-                queue.pop(task);
+                if (!queue.pop(task)) {
+		    std::cout << "pop must not fail" << std::endl;
+		    std::abort();
+		}
+		count++;
                 pool.erase(task->id);
                 uint64_t taskId = task->id;
                 (*task)();
@@ -92,6 +97,10 @@ public:
                     break;
                 }
             }
+        }
+        if (count != max) {
+    	    std::cout << "Expecting " << max << ", but got only " << count << std::endl;
+            std::abort();
         }
     }
 
@@ -105,8 +114,8 @@ std::atomic_uint_fast64_t Producer::counter;
 
 int main(int, char**) {
 
-    constexpr int producerCount = 10;
-    constexpr uint64_t limit = 100000;
+    constexpr int producerCount = 8;
+    constexpr uint64_t limit = 10000;
 
     ConcurrentQueue<Obj*> queue;
 
