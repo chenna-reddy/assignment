@@ -30,3 +30,13 @@
 *.exe
 *.out
 *.app
+
+# Intellij
+.idea/
+
+# Build folders
+build/
+cmake-build-debug/
+
+# Temporary
+out
