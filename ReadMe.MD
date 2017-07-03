@@ -22,7 +22,7 @@ game [Number of Games]
 By the time consumer take a copy of return value of pop, some other producer might have override value at that location.
 This should fix the problem for Single Producer and Single Consumer.
 2. It's not a good practice to return `mEmpty` from `pop` when there is nothing to pop.
-Its better to return `false` and pass value by reference through arguments. 
+Its better to return `false` and pass value by reference through arguments.  So that consumer isn't required to check against `mEmpty`.
 3. In `push` function, `busyWaitForPush` is invoked without guard. Its possible that two producers find there is space,
 and end up inserting one element each, which would overwrite non-consumed location.
  
@@ -36,6 +36,7 @@ and end up inserting one element each, which would overwrite non-consumed locati
     c. Introducing sleep in Producers to emulate slow and fast producers
     d. Introducing sleep in Consumer to emulate slow and fast consumer
 3. Reconciliation between producer and consumer
+
 
 
 ### If you can find the bug, what fix would you suggest and Improvements

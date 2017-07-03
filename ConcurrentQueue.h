@@ -90,6 +90,10 @@ public:
             if (size == mSize) {
                 continue;
             }
+            if (size > mSize) {
+                std::cerr << "Size can't be greater than max size" << std::endl;
+                std::abort();
+            }
             int64_t writeSlotPtr = writePtr - 1;
             // std::cout << "writePtr: " << writePtr << ", writeSlotPtr: " << writeSlotPtr << std::endl;
             // Get write slot
