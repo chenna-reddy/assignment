@@ -12,10 +12,11 @@ cmake --build build -- -j3
 ### Usage
 
 ```
-game [Number of Games]
+./build/game [Number of Games]
 ```
 
 ## Concurrent Queue
+
 
 ### Problems
 1. `pop` should not return `const T&` instead it must return `T`.
@@ -43,4 +44,11 @@ and end up inserting one element each, which would overwrite non-consumed locati
 1. Instead of using Mutex using Atomic Operations with CAS
 2. Consumer can consume elements in batch (Remove all elements at once)
 3. Spin Strategy can be parameterized instead of using busy spin always (To make it more generic)
-4. As this only works with Single Consumer, there should be a way of validating consumer, just to avoid mis-use.
+4. As this only works with Single Consumer, its better to validate consumer (may be by taking consumer address), just to avoid mis-use.
+
+
+### Usage
+
+```
+./build/cq
+```
