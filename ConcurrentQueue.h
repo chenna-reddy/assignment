@@ -53,7 +53,7 @@ public:
         // Backup the element
         ret = mMem[readPtr & mRingModMask];
         // Let the Producers know that we are done with this position
-        mReadPtr.store(readPtr + 1);
+        mReadPtr++;
         return true;
     }
 
