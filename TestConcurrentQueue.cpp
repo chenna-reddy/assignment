@@ -58,6 +58,12 @@ private:
  */
 class TestConfig {
 public:
+    /**
+     * Test Configuration
+     * @param threadCount No of Producers
+     * @param testSize No of elements to test
+     * @param sleepStrategy Sleep strategy
+     */
     TestConfig(uint threadCount, uint64_t testSize, int sleepStrategy) : threads(threadCount), max(testSize), counter(0), sleepStart(sleepStrategy) {
     }
     void sleep() {

@@ -35,9 +35,11 @@ and end up inserting one element each, which would overwrite non-consumed locati
     b. Less producers than number of threads on hardware
     c. Introducing sleep in Producers to emulate slow and fast producers
     d. Introducing sleep in Consumer to emulate slow and fast consumer
-3. 
+3. Reconciliation between producer and consumer
 
 
-### If you can find the bug, what fix would you suggest
-1. Instead of using Mutex using Atomic Operations and CAS
+### If you can find the bug, what fix would you suggest and Improvements
+1. Instead of using Mutex using Atomic Operations with CAS
 2. Consumer can consume elements in batch (Remove all elements at once)
+3. Spin Strategy can be parameterized instead of using busy spin always (To make it more generic)
+4. As this only works with Single Consumer, there should be a way of validating consumer, just to avoid mis-use.
