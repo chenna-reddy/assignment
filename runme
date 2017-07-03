@@ -2,6 +2,4 @@
 
 cmake -H. -Bbuild
 cmake --build build -- -j3
-./build/cq > out
-grep -i adding out > write
-grep -i return out > remove
+./build/cq

@@ -5,6 +5,7 @@
 #include <sstream>
 #include <set>
 #include <vector>
+#include <iomanip>
 #include "ConcurrentQueue.h"
 
 
@@ -21,7 +22,7 @@ public:
     void operator()() {
         std::ostringstream os;
         os << "Running P: " << producer << " Task: " << id;
-        std::cout << os.str() << std::endl << std::flush;
+        //std::cout << os.str() << std::endl << std::flush;
     }
 
     const int producer;
@@ -132,7 +133,6 @@ public:
                     std::abort();
                 }
                 uint64_t taskId = task->id;
-                // std::cout << "Got element " << taskId << std::endl;
                 count++;
                 tConfig.pool.erase(taskId);
                 (*task)();
@@ -182,8 +182,17 @@ int main(int, char **) {
     std::cout << "Number of threads: " << std::thread::hardware_concurrency() << std::endl;
     for (int i=std::thread::hardware_concurrency()*2+1; i>0; i-=3) {
         for (int s=0; s<=5; s+=5) {
-            TestConfig t1(i, 10000, s);
+            std::clock_t c_start = std::clock();
+            auto t_start = std::chrono::high_resolution_clock::now();
+            TestConfig t1(i, 20000, s);
             test(t1);
+            std::clock_t c_end = std::clock();
+            auto t_end = std::chrono::high_resolution_clock::now();
+            std::cout << std::fixed << std::setprecision(2) << "\tCPU time used: "
+                      << 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC << " ms\n\t"
+                      << "Wall clock time passed: "
+                      << std::chrono::duration<double, std::milli>(t_end-t_start).count()
+                      << " ms\n";
         }
     }
     return 0;

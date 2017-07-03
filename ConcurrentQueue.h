@@ -50,12 +50,10 @@ public:
             return false;
         }
         int64_t readPtr = mReadPtr;
-        std::cout << "Returning element at " << readPtr << std::endl;
         // Backup the element
         ret = mMem[readPtr & mRingModMask];
         // Let the Producers know that we are done with this position
         mReadPtr.store(readPtr + 1);
-        // mReadPtr++;
         return true;
     }
 
@@ -87,26 +85,22 @@ public:
             int64_t readPtr = mReadPtr;
             int64_t writePtr = mWritePtr;
             int64_t  size = (writePtr > readPtr ? writePtr - readPtr : readPtr - writePtr);
-            if (size == mSize) {
+            if (size >= mSize) {
                 continue;
             }
-            if (size > mSize) {
-                std::cerr << "Size can't be greater than max size" << std::endl;
-                std::abort();
-            }
             int64_t writeSlotPtr = writePtr - 1;
-            // std::cout << "writePtr: " << writePtr << ", writeSlotPtr: " << writeSlotPtr << std::endl;
             // Get write slot
             if (mWriteSlotPtr.compare_exchange_strong(writeSlotPtr, writePtr)) {
-                std::cout << "Adding element at mWritePtr: " << writePtr << std::endl;
                 // This thread got the slot, fill the element
                 mMem[writePtr & mRingModMask] = pItem;
                 if (!mWritePtr.compare_exchange_strong(writePtr, writePtr + 1)) {
-                    std::cout << "Unable to update mWritePtr to " << writePtr + 1 << std::endl;
+                    std::cerr << "Unable to update mWritePtr to " << writePtr + 1 << std::endl;
                     std::abort();
                 }
                 return;
             }
+
+
         }
         throw std::runtime_error("Concurrent queue full, cannot write to it!");
     }
