@@ -38,12 +38,13 @@ private:
 
 public:
     ConcurrentQueue() : mWritePtr(0), mWriteSlotPtr(-1), mReadPtr(0) {}
+
     /**
      * Pop an element from Queue
      * @param ret Element poped (by reference)
      * @return true if Queue isn't empty and an element is removed
      */
-    bool pop(T& ret) {
+    bool pop(T &ret) {
         // If there is nothing to consume
         if (!peek()) {
             return false;
@@ -53,7 +54,8 @@ public:
         // Backup the element
         ret = mMem[readPtr & mRingModMask];
         // Let the Producers know that we are done with this position
-        mReadPtr++;
+        mReadPtr.store(readPtr + 1);
+        // mReadPtr++;
         return true;
     }
 
@@ -80,30 +82,29 @@ public:
      * @param pItem Item to Push to Queue
      * @throws runtime_error If Unable to push after MAX_SPIN_ON_BUSY tries
      */
-    void push(const T& pItem) {
-        for (int i=0; i<MAX_SPIN_ON_BUSY; ++i) {
+    void push(const T &pItem) {
+        for (int i = 0; i < MAX_SPIN_ON_BUSY; ++i) {
             int64_t readPtr = mReadPtr;
             int64_t writePtr = mWritePtr;
-            int64_t size = writePtr > readPtr ? writePtr - readPtr : readPtr - writePtr;
-            // Full Spin Again
+            int64_t  size = (writePtr > readPtr ? writePtr - readPtr : readPtr - writePtr);
             if (size == mSize) {
                 continue;
             }
-            int64_t writeSlotPtr = writePtr-1;
+            int64_t writeSlotPtr = writePtr - 1;
             // std::cout << "writePtr: " << writePtr << ", writeSlotPtr: " << writeSlotPtr << std::endl;
-            // Get next slot
+            // Get write slot
             if (mWriteSlotPtr.compare_exchange_strong(writeSlotPtr, writePtr)) {
-                // std::cout << "Adding element at mWritePtr: " << writePtr << ", mWriteSlotPtr: " << mWriteSlotPtr << std::endl;
+                std::cout << "Adding element at mWritePtr: " << writePtr << std::endl;
                 // This thread got the slot, fill the element
                 mMem[writePtr & mRingModMask] = pItem;
-                if (!mWritePtr.compare_exchange_strong(writePtr, writePtr+1)) {
-                    std::cout << "Unable to update mWritePtr to " << writePtr+1 << std::endl;
+                if (!mWritePtr.compare_exchange_strong(writePtr, writePtr + 1)) {
+                    std::cout << "Unable to update mWritePtr to " << writePtr + 1 << std::endl;
                     std::abort();
                 }
                 return;
             }
         }
-        throw std::runtime_error("Concurrent queue full cannot write to it!");
+        throw std::runtime_error("Concurrent queue full, cannot write to it!");
     }
 
 

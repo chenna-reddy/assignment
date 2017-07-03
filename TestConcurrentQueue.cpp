@@ -1,15 +1,16 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
-#include <mutex>
 #include <thread>
-#include <atomic>
 #include <sstream>
 #include <set>
 #include <vector>
 #include "ConcurrentQueue.h"
 
 
+/**
+ * Object to pass around between producers and consumers
+ */
 class Obj {
 public:
     Obj(int p, uint64_t i) : producer(p), id(i) {
@@ -53,30 +54,58 @@ private:
 };
 
 /**
+ * Test Configuration
+ */
+class TestConfig {
+public:
+    TestConfig(uint threadCount, uint64_t testSize, int sleepStrategy) : threads(threadCount), max(testSize), counter(0), sleepStart(sleepStrategy) {
+    }
+    void sleep() {
+        if (sleepStart == 0) {
+            std::chrono::nanoseconds ns(std::rand()%100);
+            std::this_thread::sleep_for(ns);
+        } else {
+            std::chrono::nanoseconds ns(sleepStart);
+            std::this_thread::sleep_for(ns);
+        }
+    }
+    Pool pool;
+    const uint threads;
+    const uint64_t max;
+    const int sleepStart;
+    std::atomic_uint_fast64_t counter;
+};
+
+
+std::ostream& operator<<(std::ostream& os, const TestConfig& tc) {
+    os << "{ threads: " << tc.threads << ", max: " << tc.max << ", sleep: " << tc.sleepStart << "}";
+    return os;
+}
+
+/**
  * Producer to test ConcurrentQueue
  */
 class Producer {
 public:
-    Producer(int id, Pool &p, uint64_t m) : pool(p), producerId(id), max(m) {
+    Producer(int id, TestConfig& testConfig) : tConfig(testConfig), producerId(id) {
     }
 
     void operator()(ConcurrentQueue<Obj *> &queue) {
         while (true) {
-            auto taskId = counter++;
-            if (taskId >= max) {
+            auto taskId = tConfig.counter++;
+            if (taskId >= tConfig.max) {
                 break;
             }
-            pool.put(taskId);
+            tConfig.sleep();
+            tConfig.pool.put(taskId);
             auto task = new Obj(producerId, taskId);
             queue.push(task);
         }
     }
 
 private:
-    Pool &pool;
     const int producerId;
-    const uint64_t max;
-    static std::atomic_uint_fast64_t counter;
+    TestConfig& tConfig;
 };
 
 /**
@@ -84,67 +113,72 @@ private:
  */
 class Consumer {
 public:
-    Consumer(Pool &p, uint64_t m) : pool(p), max(m) {}
+    Consumer(TestConfig& testConfig) : tConfig(testConfig) {}
 
     void operator()(ConcurrentQueue<Obj *> &queue) {
         long count = 0;
         while (true) {
+            tConfig.sleep();
             if (queue.peek()) {
                 Obj *task;
                 if (!queue.pop(task)) {
-                    std::cout << "pop must not fail" << std::endl;
+                    std::cerr << "pop must not fail" << std::endl;
                     std::abort();
                 }
                 uint64_t taskId = task->id;
-                std::cout << "Got element " << taskId << std::endl;
+                // std::cout << "Got element " << taskId << std::endl;
                 count++;
-                pool.erase(taskId);
+                tConfig.pool.erase(taskId);
                 (*task)();
                 delete task;
-                if (taskId == max - 1) {
+                if (count == tConfig.max) {
                     break;
                 }
             }
         }
-        if (count != max) {
-            std::cout << "Expecting " << max << ", but got only " << count << std::endl;
-            std::abort();
-        }
     }
 
 private:
-    Pool &pool;
-    const uint64_t max;
+    TestConfig& tConfig;
 };
 
 
-std::atomic_uint_fast64_t Producer::counter;
-
-int main(int, char **) {
-
-    constexpr int producerCount = 2;
-    constexpr uint64_t limit = 100;
-
+void test(TestConfig& testConfig) {
+    std::cout << "Testing with " << testConfig << std::endl;
     ConcurrentQueue<Obj *> queue;
 
     Pool pool;
-    std::thread producerThreads[producerCount];
+    std::thread producerThreads[testConfig.threads];
 
-    std::thread consumerThread([&] {
-        Consumer consumer(pool, limit);
-        consumer(queue);
-    });
-
-    for (int i = 0; i < producerCount; ++i) {
+    for (int i = 0; i < testConfig.threads; ++i) {
         producerThreads[i] = std::thread([&, i] {
-            Producer producer(i, pool, limit);
+            Producer producer(i, testConfig);
             producer(queue);
         });
     }
 
+
+    std::thread consumerThread([&] {
+        Consumer consumer(testConfig);
+        consumer(queue);
+    });
+
     consumerThread.join();
-    for (int i = 0; i < producerCount; ++i) {
+
+    for (int i = 0; i < testConfig.threads; ++i) {
         producerThreads[i].join();
+    }
+
+}
+
+
+int main(int, char **) {
+    std::cout << "Number of threads: " << std::thread::hardware_concurrency() << std::endl;
+    for (int i=std::thread::hardware_concurrency()*2+1; i>0; i-=3) {
+        for (int s=0; s<=5; s+=5) {
+            TestConfig t1(i, 10000, s);
+            test(t1);
+        }
     }
     return 0;
 }
